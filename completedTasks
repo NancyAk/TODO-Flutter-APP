@@ -1,0 +1,82 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+
+class CompletedTasksPage extends StatefulWidget {
+  @override
+  _CompletedTasksPageState createState() => _CompletedTasksPageState();
+}
+
+class _CompletedTasksPageState extends State<CompletedTasksPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  User? user = FirebaseAuth.instance.currentUser;
+  int _currentIndex = 1; // Index for "Completed Tasks"
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Completed Tasks'),
+      ),
+      body: user == null ? Center(child: Text('Please log in.')) : _buildCompletedTaskList(),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: Colors.purple, // Highlight the active tab with purple color
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list),
+            label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.done_all),
+            label: 'Completed',
+          ),
+
+        ],
+        onTap: _onItemTapped,
+      ),
+    );
+  }
+
+  Widget _buildCompletedTaskList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('tasks')
+          .where('userId', isEqualTo: user!.uid)
+          .where('completed', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+        var tasks = snapshot.data!.docs;
+        return ListView.builder(
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            var task = tasks[index].data() as Map<String, dynamic>;
+            DateTime dueTime = (task['dueTime'] as Timestamp).toDate();
+            return ListTile(
+              title: Text(task['title']),
+              subtitle: Text('Completed on: ${DateFormat('yyyy-MM-dd HH:mm').format(dueTime)}'),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    switch (index) {
+      case 0:
+        Navigator.pushNamed(context, '/homepage');
+        break;
+      case 1:
+      // Already on the completed tasks page, do nothing
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/settings');
+        break;
+    }
+  }
+}
